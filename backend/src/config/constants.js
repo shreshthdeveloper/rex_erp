@@ -1,0 +1,180 @@
+module.exports = {
+  // User Roles
+  ROLES: {
+    SUPER_ADMIN: 'SUPER_ADMIN',
+    ADMIN: 'ADMIN',
+    WAREHOUSE_MANAGER: 'WAREHOUSE_MANAGER',
+    SALES_EXECUTIVE: 'SALES_EXECUTIVE',
+    CUSTOMER: 'CUSTOMER',
+    SUPPLIER: 'SUPPLIER'
+  },
+
+  // Order Statuses
+  ORDER_STATUS: {
+    DRAFT: 'DRAFT',
+    PENDING: 'PENDING',
+    CONFIRMED: 'CONFIRMED',
+    PROCESSING: 'PROCESSING',
+    PACKED: 'PACKED',
+    SHIPPED: 'SHIPPED',
+    DELIVERED: 'DELIVERED',
+    CANCELLED: 'CANCELLED',
+    ON_HOLD: 'ON_HOLD'
+  },
+
+  // Payment Statuses
+  PAYMENT_STATUS: {
+    UNPAID: 'UNPAID',
+    PARTIALLY_PAID: 'PARTIALLY_PAID',
+    PAID: 'PAID',
+    OVERPAID: 'OVERPAID',
+    REFUNDED: 'REFUNDED'
+  },
+
+  // Payment Terms
+  PAYMENT_TERMS: {
+    IMMEDIATE: 'IMMEDIATE',
+    NET_30: 'NET_30',
+    NET_60: 'NET_60',
+    NET_90: 'NET_90',
+    CUSTOM: 'CUSTOM'
+  },
+
+  // Payment Methods
+  PAYMENT_METHODS: {
+    CASH: 'CASH',
+    CARD: 'CARD',
+    UPI: 'UPI',
+    BANK_TRANSFER: 'BANK_TRANSFER',
+    CHEQUE: 'CHEQUE',
+    WALLET: 'WALLET'
+  },
+
+  // Inventory Transaction Types
+  INVENTORY_TRANSACTION_TYPES: {
+    INWARD: 'INWARD',
+    OUTWARD: 'OUTWARD',
+    ADJUSTMENT: 'ADJUSTMENT',
+    TRANSFER: 'TRANSFER',
+    RETURN: 'RETURN',
+    DAMAGE: 'DAMAGE'
+  },
+
+  // Tax Systems
+  TAX_SYSTEMS: {
+    GST: 'GST',
+    SALES_TAX: 'SALES_TAX',
+    VAT: 'VAT',
+    OTHER: 'OTHER'
+  },
+
+  // Tax Types
+  TAX_TYPES: {
+    GST: 'GST',
+    CGST: 'CGST',
+    SGST: 'SGST',
+    IGST: 'IGST',
+    SALES_TAX: 'SALES_TAX',
+    VAT: 'VAT'
+  },
+
+  // Return Statuses
+  RETURN_STATUS: {
+    REQUESTED: 'REQUESTED',
+    APPROVED: 'APPROVED',
+    REJECTED: 'REJECTED',
+    RECEIVED: 'RECEIVED',
+    INSPECTED: 'INSPECTED',
+    REFUNDED: 'REFUNDED',
+    REPLACED: 'REPLACED'
+  },
+
+  // Dispatch Statuses
+  DISPATCH_STATUS: {
+    PENDING: 'PENDING',
+    PICKING: 'PICKING',
+    PACKED: 'PACKED',
+    READY_TO_SHIP: 'READY_TO_SHIP',
+    SHIPPED: 'SHIPPED',
+    IN_TRANSIT: 'IN_TRANSIT',
+    OUT_FOR_DELIVERY: 'OUT_FOR_DELIVERY',
+    DELIVERED: 'DELIVERED',
+    FAILED: 'FAILED'
+  },
+
+  // Stock Adjustment Reasons
+  ADJUSTMENT_REASONS: {
+    STOCK_COUNT: 'STOCK_COUNT',
+    DAMAGE: 'DAMAGE',
+    THEFT: 'THEFT',
+    EXPIRY: 'EXPIRY',
+    FOUND: 'FOUND',
+    OTHER: 'OTHER'
+  },
+
+  // Transfer Statuses
+  TRANSFER_STATUS: {
+    REQUESTED: 'REQUESTED',
+    APPROVED: 'APPROVED',
+    REJECTED: 'REJECTED',
+    SHIPPED: 'SHIPPED',
+    IN_TRANSIT: 'IN_TRANSIT',
+    RECEIVED: 'RECEIVED',
+    COMPLETED: 'COMPLETED'
+  },
+
+  // Purchase Order Status
+  PO_STATUS: {
+    DRAFT: 'DRAFT',
+    PENDING_APPROVAL: 'PENDING_APPROVAL',
+    APPROVED: 'APPROVED',
+    SENT: 'SENT',
+    PARTIALLY_RECEIVED: 'PARTIALLY_RECEIVED',
+    RECEIVED: 'RECEIVED',
+    CANCELLED: 'CANCELLED'
+  },
+
+  // GRN Status
+  GRN_STATUS: {
+    PENDING: 'PENDING',
+    VERIFIED: 'VERIFIED',
+    REJECTED: 'REJECTED',
+    COMPLETED: 'COMPLETED'
+  },
+
+  // Notification Types
+  NOTIFICATION_TYPES: {
+    EMAIL: 'EMAIL',
+    SMS: 'SMS',
+    PUSH: 'PUSH',
+    IN_APP: 'IN_APP'
+  },
+
+  // Notification Events
+  NOTIFICATION_EVENTS: {
+    ORDER_CREATED: 'ORDER_CREATED',
+    ORDER_CONFIRMED: 'ORDER_CONFIRMED',
+    ORDER_SHIPPED: 'ORDER_SHIPPED',
+    ORDER_DELIVERED: 'ORDER_DELIVERED',
+    PAYMENT_RECEIVED: 'PAYMENT_RECEIVED',
+    INVOICE_GENERATED: 'INVOICE_GENERATED',
+    RETURN_REQUESTED: 'RETURN_REQUESTED',
+    RETURN_APPROVED: 'RETURN_APPROVED',
+    LOW_STOCK_ALERT: 'LOW_STOCK_ALERT',
+    PASSWORD_RESET: 'PASSWORD_RESET',
+    USER_CREATED: 'USER_CREATED'
+  },
+
+  // Pagination
+  PAGINATION: {
+    DEFAULT_PAGE: 1,
+    DEFAULT_LIMIT: 20,
+    MAX_LIMIT: 100
+  },
+
+  // File Upload
+  FILE_UPLOAD: {
+    MAX_SIZE: 5 * 1024 * 1024, // 5MB
+    ALLOWED_TYPES: ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf']
+  }
+};
