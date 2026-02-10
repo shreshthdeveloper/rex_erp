@@ -79,9 +79,9 @@ export default function StockAdjustments() {
   
   const getStatusBadge = (status) => {
     const statuses = {
-      pending: { color: 'warning', label: 'Pending' },
-      approved: { color: 'success', label: 'Approved' },
-      rejected: { color: 'danger', label: 'Rejected' },
+      PENDING_APPROVAL: { color: 'warning', label: 'Pending' },
+      APPROVED: { color: 'success', label: 'Approved' },
+      REJECTED: { color: 'danger', label: 'Rejected' },
     };
     return statuses[status] || { color: 'secondary', label: status };
   };
@@ -115,9 +115,9 @@ export default function StockAdjustments() {
               onChange={(e) => setFilters({ ...filters, status: e.target.value })}
             >
               <option value="">All Statuses</option>
-              <option value="pending">Pending</option>
-              <option value="approved">Approved</option>
-              <option value="rejected">Rejected</option>
+              <option value="PENDING_APPROVAL">Pending</option>
+              <option value="APPROVED">Approved</option>
+              <option value="REJECTED">Rejected</option>
             </select>
             
             <select
@@ -186,7 +186,7 @@ export default function StockAdjustments() {
                             >
                               <Eye className="w-4 h-4 text-gray-500" />
                             </button>
-                            {adj.status === 'pending' && (
+                            {adj.status === 'PENDING_APPROVAL' && (
                               <>
                                 <button 
                                   onClick={() => approveMutation.mutate(adj.id)}
@@ -465,9 +465,9 @@ function CreateAdjustmentModal({ isOpen, onClose, onSubmit, isLoading, warehouse
 function AdjustmentDetailModal({ isOpen, onClose, adjustment, onApprove, onReject, isApproving, isRejecting }) {
   const items = adjustment.StockAdjustmentItems || adjustment.items || [];
   const status = {
-    pending: { color: 'warning', label: 'Pending', icon: Clock },
-    approved: { color: 'success', label: 'Approved', icon: Check },
-    rejected: { color: 'danger', label: 'Rejected', icon: X },
+    PENDING_APPROVAL: { color: 'warning', label: 'Pending', icon: Clock },
+    APPROVED: { color: 'success', label: 'Approved', icon: Check },
+    REJECTED: { color: 'danger', label: 'Rejected', icon: X },
   }[adjustment.status] || { color: 'secondary', label: adjustment.status, icon: AlertCircle };
   
   return (

@@ -7,6 +7,7 @@ const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
 const { errorHandler, notFoundHandler } = require('./middleware/error.middleware');
+const { sanitizeRequest } = require('./middleware/sanitize.middleware');
 const logger = require('./config/logger');
 
 // Import routes
@@ -53,6 +54,7 @@ app.use('/api/', limiter);
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(sanitizeRequest);
 
 // Compression middleware
 app.use(compression());
@@ -81,7 +83,13 @@ app.get('/health', (req, res) => {
 // API routes
 const API_VERSION = process.env.API_VERSION || 'v1';
 
-app.use(`/api/${API_VERSION}/auth`, authRoutes);
+const authLimiter = rateLimit({
+  windowMs: parseInt(process.env.RATE_LIMIT_AUTH_WINDOW_MS) || 15 * 60 * 1000,
+  max: parseInt(process.env.RATE_LIMIT_AUTH_MAX_REQUESTS) || 20,
+  message: 'Too many authentication attempts, please try again later'
+});
+
+app.use(`/api/${API_VERSION}/auth`, authLimiter, authRoutes);
 app.use(`/api/${API_VERSION}/customers`, customersRoutes);
 app.use(`/api/${API_VERSION}/products`, productsRoutes);
 app.use(`/api/${API_VERSION}/sales-orders`, salesRoutes);

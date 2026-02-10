@@ -34,7 +34,8 @@ exports.login = async (req, res, next) => {
 
 exports.logout = async (req, res, next) => {
   try {
-    // In a real implementation, you might want to blacklist the token
+    const { refreshToken } = req.body;
+    await authService.revokeRefreshToken(refreshToken);
     res.json({
       success: true,
       message: 'Logged out successfully',

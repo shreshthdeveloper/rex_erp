@@ -95,6 +95,16 @@ router.get('/:id',
   dispatchController.getDispatchById
 );
 
+router.patch('/:id/status',
+  authorize('dispatch_update'),
+  [
+    param('id').isInt().withMessage('Dispatch ID must be an integer'),
+    body('status').notEmpty().withMessage('Status is required')
+  ],
+  validate,
+  dispatchController.updateStatus
+);
+
 router.get('/:id/tracking',
   authorize('dispatch_read'),
   [
@@ -196,6 +206,19 @@ router.post('/:id/tracking',
   ],
   validate,
   dispatchController.addTrackingUpdate
+);
+
+// Mark delivered
+router.post('/:id/delivered',
+  authorize('dispatch_update'),
+  [
+    param('id').isInt().withMessage('Dispatch ID must be an integer'),
+    body('receivedBy').optional().trim(),
+    body('notes').optional().trim(),
+    body('location').optional().trim()
+  ],
+  validate,
+  dispatchController.markDelivered
 );
 
 // Delivery

@@ -36,16 +36,20 @@ import {
 
 function getStatusConfig(status) {
   switch (status) {
-    case 'completed':
-      return { color: 'success', icon: CheckCircle, label: 'Completed' };
-    case 'processing':
+    case 'DELIVERED':
+      return { color: 'success', icon: CheckCircle, label: 'Delivered' };
+    case 'PROCESSING':
       return { color: 'warning', icon: Clock, label: 'Processing' };
-    case 'pending':
+    case 'PENDING':
       return { color: 'secondary', icon: Clock, label: 'Pending' };
-    case 'shipped':
+    case 'SHIPPED':
       return { color: 'primary', icon: Truck, label: 'Shipped' };
-    case 'cancelled':
+    case 'CANCELLED':
       return { color: 'danger', icon: XCircle, label: 'Cancelled' };
+    case 'CONFIRMED':
+      return { color: 'primary', icon: CheckCircle, label: 'Confirmed' };
+    case 'ON_HOLD':
+      return { color: 'warning', icon: Clock, label: 'On Hold' };
     default:
       return { color: 'secondary', icon: Clock, label: status };
   }
@@ -61,7 +65,7 @@ export default function SalesOrders() {
   
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['sales-orders', page, search, statusFilter],
-    queryFn: () => salesAPI.getAll({ page, search, status: statusFilter !== 'all' ? statusFilter : undefined }),
+    queryFn: () => salesAPI.getAll({ page, search, status: statusFilter !== 'all' ? statusFilter.toUpperCase() : undefined }),
   });
   
   const orders = data?.data?.orders || [];
@@ -101,8 +105,8 @@ export default function SalesOrders() {
       header: 'Customer',
       render: (row) => (
         <div>
-          <p className="font-medium text-gray-900">{row.customer_name}</p>
-          <p className="text-sm text-gray-500">{row.customer_email}</p>
+          <p className="font-medium text-gray-900">{row.Customer?.company_name || '—'}</p>
+          <p className="text-sm text-gray-500">{row.Customer?.email || ''}</p>
         </div>
       ),
     },

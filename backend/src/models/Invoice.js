@@ -60,6 +60,10 @@ const Invoice = sequelize.define('Invoice', {
     type: DataTypes.TEXT,
     allowNull: true
   },
+  created_by: {
+    type: DataTypes.INTEGER.UNSIGNED,
+    allowNull: true
+  },
   created_at: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW

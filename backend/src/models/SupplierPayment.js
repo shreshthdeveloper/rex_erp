@@ -16,6 +16,10 @@ const SupplierPayment = sequelize.define('SupplierPayment', {
     type: DataTypes.INTEGER.UNSIGNED,
     allowNull: false
   },
+  purchase_order_id: {
+    type: DataTypes.INTEGER.UNSIGNED,
+    allowNull: true
+  },
   payment_method_id: {
     type: DataTypes.INTEGER.UNSIGNED,
     allowNull: false
@@ -36,6 +40,10 @@ const SupplierPayment = sequelize.define('SupplierPayment', {
     type: DataTypes.ENUM('PENDING', 'COMPLETED', 'FAILED', 'CANCELLED', 'REFUNDED'),
     defaultValue: 'PENDING'
   },
+  status_notes: {
+    type: DataTypes.TEXT,
+    allowNull: true
+  },
   notes: {
     type: DataTypes.TEXT,
     allowNull: true
@@ -43,6 +51,22 @@ const SupplierPayment = sequelize.define('SupplierPayment', {
   created_by: {
     type: DataTypes.INTEGER.UNSIGNED,
     allowNull: false
+  },
+  approved_by: {
+    type: DataTypes.INTEGER.UNSIGNED,
+    allowNull: true
+  },
+  approved_at: {
+    type: DataTypes.DATE,
+    allowNull: true
+  },
+  processed_by: {
+    type: DataTypes.INTEGER.UNSIGNED,
+    allowNull: true
+  },
+  processed_at: {
+    type: DataTypes.DATE,
+    allowNull: true
   }
 }, {
   tableName: 'supplier_payments',

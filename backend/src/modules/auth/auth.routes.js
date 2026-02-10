@@ -31,11 +31,16 @@ const resetPasswordValidation = [
   validate
 ];
 
+const refreshTokenValidation = [
+  body('refreshToken').notEmpty().withMessage('Refresh token is required'),
+  validate
+];
+
 // Routes
 router.post('/register', registerValidation, authController.register);
 router.post('/login', loginValidation, authController.login);
-router.post('/logout', authenticateToken, authController.logout);
-router.post('/refresh-token', authController.refreshToken);
+router.post('/logout', authenticateToken, refreshTokenValidation, authController.logout);
+router.post('/refresh-token', refreshTokenValidation, authController.refreshToken);
 router.post('/forgot-password', authController.forgotPassword);
 router.post('/reset-password', resetPasswordValidation, authController.resetPassword);
 router.post('/change-password', authenticateToken, changePasswordValidation, authController.changePassword);

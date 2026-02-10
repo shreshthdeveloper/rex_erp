@@ -20,7 +20,7 @@ export default function CreateCustomer() {
       billing_city: '',
       billing_state_id: '',
       billing_country_id: '',
-      postal_code: '',
+      billing_postal_code: '',
       notes: '',
       credit_limit: 0,
       is_active: true,
@@ -69,7 +69,7 @@ export default function CreateCustomer() {
       billing_city: data.billing_city || undefined,
       billing_state_id: data.billing_state_id ? parseInt(data.billing_state_id, 10) : undefined,
       billing_country_id: parseInt(data.billing_country_id, 10),
-      postal_code: data.postal_code || undefined,
+      billing_postal_code: data.billing_postal_code || undefined,
       notes: data.notes || undefined,
       credit_limit: data.credit_limit || 0,
       is_active: data.is_active,
@@ -213,7 +213,7 @@ export default function CreateCustomer() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Postal Code</label>
                     <input
                       type="text"
-                      {...register('postal_code')}
+                      {...register('billing_postal_code')}
                       className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                       placeholder="Enter postal code"
                     />

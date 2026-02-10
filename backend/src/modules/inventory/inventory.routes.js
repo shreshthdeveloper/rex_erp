@@ -67,7 +67,7 @@ router.get('/adjustments',
   [
     query('page').optional().isInt({ min: 1 }),
     query('limit').optional().isInt({ min: 1, max: 100 }),
-    query('status').optional().isIn(['pending', 'approved', 'rejected']),
+    query('status').optional().isIn(['pending', 'approved', 'rejected', 'PENDING_APPROVAL', 'APPROVED', 'REJECTED']),
     query('warehouseId').optional().isInt(),
     query('startDate').optional().isISO8601(),
     query('endDate').optional().isISO8601()
@@ -132,7 +132,7 @@ router.get('/transfers',
   [
     query('page').optional().isInt({ min: 1 }),
     query('limit').optional().isInt({ min: 1, max: 100 }),
-    query('status').optional().isIn(['pending', 'approved', 'in_transit', 'completed', 'cancelled']),
+    query('status').optional().isIn(['pending', 'approved', 'in_transit', 'completed', 'cancelled', 'PENDING_APPROVAL', 'APPROVED', 'IN_TRANSIT', 'COMPLETED', 'CANCELLED']),
     query('sourceWarehouseId').optional().isInt(),
     query('destinationWarehouseId').optional().isInt(),
     query('startDate').optional().isISO8601(),

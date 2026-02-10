@@ -137,7 +137,7 @@ export default function DispatchDetail() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-500 mb-1">Carrier</p>
-                  <p className="font-medium text-gray-900">{dispatch.carrier || 'Not specified'}</p>
+                  <p className="font-medium text-gray-900">{dispatch.ShippingCarrier?.carrier_name || 'Not specified'}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500 mb-1">Tracking Number</p>
@@ -250,24 +250,24 @@ export default function DispatchDetail() {
               <CardTitle>Sales Order</CardTitle>
             </CardHeader>
             <CardBody>
-              {dispatch.sales_order ? (
+              {dispatch.SalesOrder ? (
                 <div className="space-y-3">
                   <Link
                     to={`/sales/orders/${dispatch.sales_order_id}`}
                     className="font-medium text-primary-600 hover:text-primary-700"
                   >
-                    {dispatch.sales_order.order_number}
+                    {dispatch.SalesOrder.order_number}
                   </Link>
                   <div>
                     <p className="text-sm text-gray-500">Order Date</p>
                     <p className="text-gray-900">
-                      {format(new Date(dispatch.sales_order.order_date), 'MMM dd, yyyy')}
+                      {format(new Date(dispatch.SalesOrder.order_date), 'MMM dd, yyyy')}
                     </p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-500">Total Amount</p>
                     <p className="text-lg font-semibold text-gray-900">
-                      ${parseFloat(dispatch.sales_order.total_amount || 0).toLocaleString()}
+                      ${parseFloat(dispatch.SalesOrder.total_amount || 0).toLocaleString()}
                     </p>
                   </div>
                 </div>
@@ -283,22 +283,22 @@ export default function DispatchDetail() {
               <CardTitle>Customer</CardTitle>
             </CardHeader>
             <CardBody>
-              {dispatch.sales_order?.customer ? (
+              {dispatch.SalesOrder?.Customer ? (
                 <div className="space-y-4">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
                       <User className="w-5 h-5 text-primary-600" />
                     </div>
                     <div>
-                      <p className="font-medium text-gray-900">{dispatch.sales_order.customer.name}</p>
-                      <p className="text-sm text-gray-500">{dispatch.sales_order.customer.email}</p>
+                      <p className="font-medium text-gray-900">{dispatch.SalesOrder.Customer.company_name}</p>
+                      <p className="text-sm text-gray-500">{dispatch.SalesOrder.Customer.email}</p>
                     </div>
                   </div>
                   
-                  {dispatch.sales_order.customer.phone && (
+                  {dispatch.SalesOrder.Customer.phone && (
                     <div className="flex items-center gap-2 text-gray-600">
                       <Phone className="w-4 h-4" />
-                      <span>{dispatch.sales_order.customer.phone}</span>
+                      <span>{dispatch.SalesOrder.Customer.phone}</span>
                     </div>
                   )}
                 </div>
@@ -314,25 +314,17 @@ export default function DispatchDetail() {
               <CardTitle>Shipping Address</CardTitle>
             </CardHeader>
             <CardBody>
-              {dispatch.shipping_address ? (
+              {dispatch.SalesOrder?.shipping_address_line1 || dispatch.SalesOrder?.shipping_city ? (
                 <div className="flex items-start gap-3">
                   <MapPin className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
                   <div className="text-gray-600">
-                    <p>{dispatch.shipping_address.address_line1}</p>
-                    {dispatch.shipping_address.address_line2 && (
-                      <p>{dispatch.shipping_address.address_line2}</p>
+                    {dispatch.SalesOrder?.shipping_address_line1 && <p>{dispatch.SalesOrder.shipping_address_line1}</p>}
+                    {dispatch.SalesOrder?.shipping_address_line2 && <p>{dispatch.SalesOrder.shipping_address_line2}</p>}
+                    {(dispatch.SalesOrder?.shipping_city || dispatch.SalesOrder?.shipping_postal_code) && (
+                      <p>
+                        {[dispatch.SalesOrder?.shipping_city, dispatch.SalesOrder?.shipping_postal_code].filter(Boolean).join(' ')}
+                      </p>
                     )}
-                    <p>
-                      {dispatch.shipping_address.city}, {dispatch.shipping_address.state} {dispatch.shipping_address.postal_code}
-                    </p>
-                    <p>{dispatch.shipping_address.country}</p>
-                  </div>
-                </div>
-              ) : dispatch.sales_order?.shipping_address ? (
-                <div className="flex items-start gap-3">
-                  <MapPin className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
-                  <div className="text-gray-600 whitespace-pre-line">
-                    {dispatch.sales_order.shipping_address}
                   </div>
                 </div>
               ) : (

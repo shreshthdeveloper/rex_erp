@@ -26,6 +26,7 @@ router.get('/', requirePermission('ORDER_VIEW'), salesController.getOrders);
 router.get('/overdue', requirePermission('ORDER_VIEW'), salesController.getOverdueOrders);
 router.get('/:id', requirePermission('ORDER_VIEW'), idValidation, salesController.getOrderById);
 router.put('/:id/status', requirePermission('ORDER_UPDATE'), idValidation, salesController.updateOrderStatus);
+router.delete('/:id', requirePermission('ORDER_DELETE'), idValidation, salesController.deleteOrder);
 
 // Order actions
 router.post('/:id/confirm', requirePermission('ORDER_APPROVE'), idValidation, salesController.confirmOrder);

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { Plus, Eye, Search, Filter, Truck, Package, CheckCircle, Clock, XCircle } from 'lucide-react';
-import { dispatchesAPI } from '../../services/api';
+import { dispatchAPI } from '../../services/api';
 import { Card, CardHeader, CardTitle, CardBody, Button, Badge, TableSkeleton } from '../../components/ui';
 
 export default function Dispatches() {
@@ -15,11 +15,11 @@ export default function Dispatches() {
   
   const { data, isLoading } = useQuery({
     queryKey: ['dispatches', filters, page],
-    queryFn: () => dispatchesAPI.getAll({ ...filters, page, limit: 20 }),
+    queryFn: () => dispatchAPI.getAll({ ...filters, page, limit: 20 }),
   });
   
   const dispatches = data?.data?.dispatches || [];
-  const totalPages = data?.data?.totalPages || 1;
+  const totalPages = data?.data?.pagination?.totalPages || 1;
   
   const getStatusConfig = (status) => {
     const statuses = {
@@ -187,11 +187,11 @@ export default function Dispatches() {
                         </td>
                         <td className="py-4 px-6">
                           <Link to={`/sales/orders/${dispatch.sales_order_id}`} className="text-gray-900 hover:text-primary-600">
-                            {dispatch.sales_order?.order_number || '-'}
+                            {dispatch.SalesOrder?.order_number || '-'}
                           </Link>
                         </td>
                         <td className="py-4 px-6">
-                          <p className="font-medium text-gray-900">{dispatch.sales_order?.customer?.name || 'N/A'}</p>
+                          <p className="font-medium text-gray-900">{dispatch.SalesOrder?.Customer?.company_name || 'N/A'}</p>
                         </td>
                         <td className="py-4 px-6">
                           <Badge variant={statusConfig.color}>
@@ -206,7 +206,7 @@ export default function Dispatches() {
                           }
                         </td>
                         <td className="py-4 px-6 text-gray-500">
-                          {dispatch.carrier || '-'}
+                          {dispatch.ShippingCarrier?.carrier_name || '-'}
                         </td>
                         <td className="py-4 px-6 text-right">
                           <Link

@@ -40,15 +40,20 @@ class SalesOrdersService {
 
       // Check inventory and reserve stock
       for (const item of data.items) {
+        if (!item.quantity || item.quantity <= 0) {
+          throw new AppError('Item quantity must be greater than 0', 400, 'INVALID_QUANTITY');
+        }
         const inventory = await Inventory.findOne({
           where: {
             product_id: item.product_id,
             warehouse_id: data.warehouse_id
           },
-          transaction
+          transaction,
+          lock: transaction.LOCK.UPDATE
         });
 
-        if (!inventory || inventory.quantity_available < item.quantity) {
+        const available = inventory.quantity_available - inventory.quantity_reserved;
+        if (!inventory || available < item.quantity) {
           throw new AppError(
             `Insufficient inventory for product ID ${item.product_id}`,
             400,
@@ -226,6 +231,11 @@ class SalesOrdersService {
       await transaction.rollback();
       throw error;
     }
+  }
+
+  async deleteOrder(id) {
+    // Soft-delete by cancelling and releasing inventory
+    return this.cancelOrder(id);
   }
 
   async confirmOrder(id, confirmedBy) {

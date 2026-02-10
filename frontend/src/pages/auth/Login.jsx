@@ -29,8 +29,8 @@ export default function Login() {
     try {
       const response = await authAPI.login(data);
       // Backend returns: { success: true, data: { user, accessToken, ... } }
-      const { user, accessToken } = response.data.data;
-      setAuth(user, accessToken);
+      const { user, accessToken, refreshToken } = response.data.data;
+      setAuth(user, accessToken, refreshToken);
       toast.success('Welcome back!');
       navigate('/');
     } catch (error) {

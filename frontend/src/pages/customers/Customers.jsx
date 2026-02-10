@@ -23,9 +23,9 @@ export default function Customers() {
   const stats = {
     total: totalRecords,
     active: customers.filter(c => c.is_active).length,
-    totalRevenue: customers.reduce((sum, c) => sum + parseFloat(c.total_revenue || 0), 0),
+    totalRevenue: 0,
     avgOrderValue: customers.length > 0 
-      ? customers.reduce((sum, c) => sum + parseFloat(c.average_order_value || 0), 0) / customers.length 
+      ? 0
       : 0,
   };
   
@@ -158,15 +158,15 @@ export default function Customers() {
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
                             <span className="text-primary-600 font-semibold">
-                              {customer.name?.charAt(0)?.toUpperCase()}
+                              {customer.company_name?.charAt(0)?.toUpperCase()}
                             </span>
                           </div>
                           <div>
                             <Link to={`/customers/${customer.id}`} className="font-medium text-gray-900 hover:text-primary-600">
-                              {customer.name}
+                              {customer.company_name}
                             </Link>
-                            {customer.company && (
-                              <p className="text-sm text-gray-500">{customer.company}</p>
+                            {customer.contact_person && (
+                              <p className="text-sm text-gray-500">{customer.contact_person}</p>
                             )}
                           </div>
                         </div>
@@ -188,10 +188,10 @@ export default function Customers() {
                         </div>
                       </td>
                       <td className="py-4 px-6">
-                        {customer.city ? (
+                        {customer.billing_city ? (
                           <div className="flex items-center gap-2 text-gray-500">
                             <MapPin className="w-4 h-4" />
-                            {customer.city}, {customer.country || ''}
+                            {customer.billing_city}, {customer.billingCountry?.name || ''}
                           </div>
                         ) : (
                           <span className="text-gray-400">-</span>

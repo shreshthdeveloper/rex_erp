@@ -4,6 +4,8 @@ const sequelize = require('../config/database');
 const User = require('./User');
 const Role = require('./Role');
 const Permission = require('./Permission');
+const RefreshToken = require('./RefreshToken');
+const PasswordResetToken = require('./PasswordResetToken');
 const Country = require('./Country');
 const State = require('./State');
 const TaxRate = require('./TaxRate');
@@ -56,6 +58,12 @@ Role.belongsToMany(User, { through: 'user_roles', foreignKey: 'role_id' });
 
 Role.belongsToMany(Permission, { through: 'role_permissions', foreignKey: 'role_id' });
 Permission.belongsToMany(Role, { through: 'role_permissions', foreignKey: 'permission_id' });
+
+User.hasMany(RefreshToken, { foreignKey: 'user_id', as: 'refreshTokens' });
+RefreshToken.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+
+User.hasMany(PasswordResetToken, { foreignKey: 'user_id', as: 'passwordResetTokens' });
+PasswordResetToken.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 
 // =====================================================
 // MASTER DATA
@@ -206,11 +214,15 @@ GRNItem.belongsTo(PurchaseOrderItem, { foreignKey: 'purchase_order_item_id' });
 CustomerPayment.belongsTo(Customer, { foreignKey: 'customer_id' });
 CustomerPayment.belongsTo(PaymentMethod, { foreignKey: 'payment_method_id' });
 CustomerPayment.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
+CustomerPayment.belongsTo(Invoice, { foreignKey: 'invoice_id' });
 Customer.hasMany(CustomerPayment, { foreignKey: 'customer_id' });
 
 SupplierPayment.belongsTo(Supplier, { foreignKey: 'supplier_id' });
 SupplierPayment.belongsTo(PaymentMethod, { foreignKey: 'payment_method_id' });
 SupplierPayment.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
+SupplierPayment.belongsTo(User, { foreignKey: 'approved_by', as: 'approver' });
+SupplierPayment.belongsTo(User, { foreignKey: 'processed_by', as: 'processor' });
+SupplierPayment.belongsTo(PurchaseOrder, { foreignKey: 'purchase_order_id' });
 Supplier.hasMany(SupplierPayment, { foreignKey: 'supplier_id' });
 
 // =====================================================

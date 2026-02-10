@@ -121,10 +121,15 @@ class InventoryService {
     try {
       const { warehouseId, productId, quantity, referenceType, referenceId, notes } = data;
 
+      if (quantity <= 0) {
+        throw new AppError('Quantity must be greater than 0', 400, 'INVALID_QUANTITY');
+      }
+
       // Get inventory record
       const inventory = await Inventory.findOne({
         where: { warehouse_id: warehouseId, product_id: productId },
-        transaction: t
+        transaction: t,
+        lock: t.LOCK.UPDATE
       });
 
       if (!inventory) {
@@ -205,43 +210,50 @@ class InventoryService {
 
     try {
       const { warehouseId, reason, notes, items } = data;
+      const adjustmentType = (data.adjustment_type || data.adjustmentType || 'OTHER').toUpperCase();
 
       // Generate adjustment number
-      const count = await StockAdjustment.count({ transaction });
+      const count = await StockAdjustment.count({ transaction: t });
       const adjustmentNumber = `ADJ${String(count + 1).padStart(6, '0')}`;
 
       const adjustment = await StockAdjustment.create({
-        adjustmentNumber,
-        warehouseId,
-        adjustmentDate: new Date(),
+        adjustment_number: adjustmentNumber,
+        warehouse_id: warehouseId,
+        adjustment_type: adjustmentType,
         reason,
         notes,
-        status: 'pending',
-        createdBy
-      }, { transaction });
+        status: 'PENDING_APPROVAL',
+        total_items: items.length,
+        created_by: createdBy
+      }, { transaction: t });
 
       // Create adjustment items
       for (const item of items) {
         const inventory = await Inventory.findOne({
-          where: { warehouseId, productId: item.productId },
-          transaction
+          where: { warehouse_id: warehouseId, product_id: item.productId },
+          transaction: t,
+          lock: t.LOCK.UPDATE
         });
 
+        const quantityBefore = inventory ? inventory.quantity_available : 0;
+        const quantityAfter = item.adjustedQuantity;
+        const quantityAdjusted = quantityAfter - quantityBefore;
+
         await StockAdjustmentItem.create({
-          adjustmentId: adjustment.id,
-          productId: item.productId,
-          previousQuantity: inventory ? inventory.quantity : 0,
-          adjustedQuantity: item.adjustedQuantity,
-          difference: item.adjustedQuantity - (inventory ? inventory.quantity : 0),
+          stock_adjustment_id: adjustment.id,
+          product_id: item.productId,
+          quantity_before: quantityBefore,
+          quantity_adjusted: quantityAdjusted,
+          quantity_after: quantityAfter,
           reason: item.reason
-        }, { transaction });
+        }, { transaction: t });
       }
 
-      await transaction.commit();
+      await t.commit();
 
       return this.getAdjustmentById(adjustment.id);
     } catch (error) {
-      await transaction.rollback();
+      await t.rollback();
       throw error;
     }
   }
@@ -249,13 +261,13 @@ class InventoryService {
   async getAdjustmentById(id) {
     const adjustment = await StockAdjustment.findByPk(id, {
       include: [
-        { model: Warehouse, as: 'warehouse' },
-        { model: User, as: 'createdByUser', attributes: ['id', 'firstName', 'lastName'] },
-        { model: User, as: 'approvedByUser', attributes: ['id', 'firstName', 'lastName'] },
+        { model: Warehouse, attributes: ['id', 'warehouse_name', 'warehouse_code'] },
+        { model: User, as: 'creator', attributes: ['id', 'first_name', 'last_name'] },
+        { model: User, as: 'approver', attributes: ['id', 'first_name', 'last_name'] },
         {
           model: StockAdjustmentItem,
           as: 'items',
-          include: [{ model: Product, as: 'product', attributes: ['id', 'name', 'sku'] }]
+          include: [{ model: Product, attributes: ['id', 'product_name', 'sku'] }]
         }
       ]
     });
@@ -264,71 +276,73 @@ class InventoryService {
   }
 
   async approveAdjustment(id, approvedBy, approvalNotes) {
-    const transaction = await sequelize.transaction();
+    const t = await sequelize.transaction();
 
     try {
       const adjustment = await StockAdjustment.findByPk(id, {
         include: [{ model: StockAdjustmentItem, as: 'items' }],
-        transaction
+        transaction: t,
+        lock: t.LOCK.UPDATE
       });
 
       if (!adjustment) {
         throw new AppError('Stock adjustment not found', 404, 'NOT_FOUND');
       }
 
-      if (adjustment.status !== 'pending') {
+      if (adjustment.status !== 'PENDING_APPROVAL') {
         throw new AppError('Only pending adjustments can be approved', 400, 'INVALID_STATUS');
       }
 
       // Apply adjustments to inventory
       for (const item of adjustment.items) {
         let inventory = await Inventory.findOne({
-          where: { warehouseId: adjustment.warehouseId, productId: item.productId },
-          transaction
+          where: { warehouse_id: adjustment.warehouse_id, product_id: item.product_id },
+          transaction: t,
+          lock: t.LOCK.UPDATE
         });
 
         if (inventory) {
           await inventory.update({
-            quantity: item.adjustedQuantity
-          }, { transaction });
+            quantity_available: item.quantity_after
+          }, { transaction: t });
         } else {
           inventory = await Inventory.create({
-            warehouseId: adjustment.warehouseId,
-            productId: item.productId,
-            quantity: item.adjustedQuantity,
-            reservedQuantity: 0,
-            reorderLevel: 10,
-            maxStockLevel: 1000
-          }, { transaction });
+            warehouse_id: adjustment.warehouse_id,
+            product_id: item.product_id,
+            quantity_available: item.quantity_after,
+            quantity_reserved: 0,
+            quantity_damaged: 0,
+            reorder_point: 10
+          }, { transaction: t });
         }
 
         // Create transaction record
         await InventoryTransaction.create({
-          warehouseId: adjustment.warehouseId,
-          productId: item.productId,
-          transactionType: 'adjustment',
-          quantity: Math.abs(item.difference),
-          referenceType: 'adjustment',
-          referenceId: adjustment.id,
-          previousQuantity: item.previousQuantity,
-          newQuantity: item.adjustedQuantity,
+          warehouse_id: adjustment.warehouse_id,
+          product_id: item.product_id,
+          transaction_type: 'ADJUSTMENT',
+          quantity: Math.abs(item.quantity_adjusted),
+          reference_type: 'ADJUSTMENT',
+          reference_id: adjustment.id,
+          quantity_before: item.quantity_before,
+          quantity_after: item.quantity_after,
           notes: adjustment.reason,
-          createdBy: approvedBy
-        }, { transaction });
+          created_by: approvedBy
+        }, { transaction: t });
       }
 
       await adjustment.update({
-        status: 'approved',
-        approvedBy,
-        approvedAt: new Date(),
-        approvalNotes
-      }, { transaction });
+        status: 'APPROVED',
+        approved_by: approvedBy,
+        approved_at: new Date(),
+        notes: approvalNotes || adjustment.notes
+      }, { transaction: t });
 
-      await transaction.commit();
+      await t.commit();
 
       return this.getAdjustmentById(id);
     } catch (error) {
-      await transaction.rollback();
+      await t.rollback();
       throw error;
     }
   }
@@ -340,15 +354,15 @@ class InventoryService {
       throw new AppError('Stock adjustment not found', 404, 'NOT_FOUND');
     }
 
-    if (adjustment.status !== 'pending') {
+    if (adjustment.status !== 'PENDING_APPROVAL') {
       throw new AppError('Only pending adjustments can be rejected', 400, 'INVALID_STATUS');
     }
 
     await adjustment.update({
-      status: 'rejected',
-      approvedBy: rejectedBy,
-      approvedAt: new Date(),
-      approvalNotes: rejectionNotes
+      status: 'REJECTED',
+      approved_by: rejectedBy,
+      approved_at: new Date(),
+      notes: rejectionNotes || adjustment.notes
     });
 
     return this.getAdjustmentById(id);
@@ -360,25 +374,34 @@ class InventoryService {
     const { page = 1, limit = 20, status, sourceWarehouseId, destinationWarehouseId, startDate, endDate } = options;
 
     const where = {};
-    if (status) where.status = status;
-    if (sourceWarehouseId) where.sourceWarehouseId = sourceWarehouseId;
-    if (destinationWarehouseId) where.destinationWarehouseId = destinationWarehouseId;
+    if (status) {
+      const statusMap = {
+        pending: 'PENDING_APPROVAL',
+        approved: 'APPROVED',
+        in_transit: 'IN_TRANSIT',
+        completed: 'COMPLETED',
+        cancelled: 'CANCELLED'
+      };
+      where.status = statusMap[status] || status.toUpperCase();
+    }
+    if (sourceWarehouseId) where.from_warehouse_id = sourceWarehouseId;
+    if (destinationWarehouseId) where.to_warehouse_id = destinationWarehouseId;
     if (startDate || endDate) {
-      where.transferDate = {};
-      if (startDate) where.transferDate[Op.gte] = new Date(startDate);
-      if (endDate) where.transferDate[Op.lte] = new Date(endDate);
+      where.created_at = {};
+      if (startDate) where.created_at[Op.gte] = new Date(startDate);
+      if (endDate) where.created_at[Op.lte] = new Date(endDate);
     }
 
     const { rows, count } = await WarehouseTransfer.findAndCountAll({
       where,
       include: [
-        { model: Warehouse, as: 'sourceWarehouse', attributes: ['id', 'name', 'code'] },
-        { model: Warehouse, as: 'destinationWarehouse', attributes: ['id', 'name', 'code'] },
-        { model: User, as: 'createdByUser', attributes: ['id', 'firstName', 'lastName'] }
+        { model: Warehouse, as: 'fromWarehouse', attributes: ['id', 'warehouse_name', 'warehouse_code'] },
+        { model: Warehouse, as: 'toWarehouse', attributes: ['id', 'warehouse_name', 'warehouse_code'] },
+        { model: User, as: 'creator', attributes: ['id', 'first_name', 'last_name'] }
       ],
       limit,
       offset: (page - 1) * limit,
-      order: [['createdAt', 'DESC']]
+      order: [['created_at', 'DESC']]
     });
 
     return {
@@ -390,7 +413,7 @@ class InventoryService {
   }
 
   async createTransfer(data, createdBy) {
-    const transaction = await sequelize.transaction();
+    const t = await sequelize.transaction();
 
     try {
       const { sourceWarehouseId, destinationWarehouseId, notes, items } = data;
@@ -399,52 +422,57 @@ class InventoryService {
         throw new AppError('Source and destination warehouses must be different', 400, 'SAME_WAREHOUSE');
       }
 
+      let totalQuantity = 0;
+
       // Validate source inventory
       for (const item of items) {
         const inventory = await Inventory.findOne({
-          where: { warehouseId: sourceWarehouseId, productId: item.productId },
-          transaction
+          where: { warehouse_id: sourceWarehouseId, product_id: item.productId },
+          transaction: t,
+          lock: t.LOCK.UPDATE
         });
 
         if (!inventory) {
           throw new AppError(`Product ${item.productId} not found in source warehouse`, 400, 'NO_INVENTORY');
         }
 
-        const available = inventory.quantity - inventory.reservedQuantity;
+        const available = inventory.quantity_available - inventory.quantity_reserved;
         if (available < item.quantity) {
           throw new AppError(`Insufficient stock for product ${item.productId}. Available: ${available}`, 400, 'INSUFFICIENT_STOCK');
         }
+        totalQuantity += item.quantity;
       }
 
       // Generate transfer number
-      const count = await WarehouseTransfer.count({ transaction });
+      const count = await WarehouseTransfer.count({ transaction: t });
       const transferNumber = `TRF${String(count + 1).padStart(6, '0')}`;
 
       const transfer = await WarehouseTransfer.create({
-        transferNumber,
-        sourceWarehouseId,
-        destinationWarehouseId,
-        transferDate: new Date(),
-        status: 'pending',
+        transfer_number: transferNumber,
+        from_warehouse_id: sourceWarehouseId,
+        to_warehouse_id: destinationWarehouseId,
+        status: 'PENDING_APPROVAL',
         notes,
-        createdBy
-      }, { transaction });
+        total_items: items.length,
+        total_quantity: totalQuantity,
+        created_by: createdBy
+      }, { transaction: t });
 
       // Create transfer items
       for (const item of items) {
         await WarehouseTransferItem.create({
-          transferId: transfer.id,
-          productId: item.productId,
-          quantity: item.quantity,
+          warehouse_transfer_id: transfer.id,
+          product_id: item.productId,
+          quantity_requested: item.quantity,
           notes: item.notes
-        }, { transaction });
+        }, { transaction: t });
       }
 
-      await transaction.commit();
+      await t.commit();
 
       return this.getTransferById(transfer.id);
     } catch (error) {
-      await transaction.rollback();
+      await t.rollback();
       throw error;
     }
   }
@@ -452,15 +480,15 @@ class InventoryService {
   async getTransferById(id) {
     const transfer = await WarehouseTransfer.findByPk(id, {
       include: [
-        { model: Warehouse, as: 'sourceWarehouse' },
-        { model: Warehouse, as: 'destinationWarehouse' },
-        { model: User, as: 'createdByUser', attributes: ['id', 'firstName', 'lastName'] },
-        { model: User, as: 'approvedByUser', attributes: ['id', 'firstName', 'lastName'] },
-        { model: User, as: 'receivedByUser', attributes: ['id', 'firstName', 'lastName'] },
+        { model: Warehouse, as: 'fromWarehouse' },
+        { model: Warehouse, as: 'toWarehouse' },
+        { model: User, as: 'creator', attributes: ['id', 'first_name', 'last_name'] },
+        { model: User, as: 'approver', attributes: ['id', 'first_name', 'last_name'] },
+        { model: User, as: 'receiver', attributes: ['id', 'first_name', 'last_name'] },
         {
           model: WarehouseTransferItem,
           as: 'items',
-          include: [{ model: Product, as: 'product', attributes: ['id', 'name', 'sku'] }]
+          include: [{ model: Product, attributes: ['id', 'product_name', 'sku'] }]
         }
       ]
     });
@@ -469,50 +497,52 @@ class InventoryService {
   }
 
   async approveTransfer(id, approvedBy) {
-    const transaction = await sequelize.transaction();
+    const t = await sequelize.transaction();
 
     try {
       const transfer = await WarehouseTransfer.findByPk(id, {
         include: [{ model: WarehouseTransferItem, as: 'items' }],
-        transaction
+        transaction: t,
+        lock: t.LOCK.UPDATE
       });
 
       if (!transfer) {
         throw new AppError('Transfer not found', 404, 'NOT_FOUND');
       }
 
-      if (transfer.status !== 'pending') {
+      if (transfer.status !== 'PENDING_APPROVAL') {
         throw new AppError('Only pending transfers can be approved', 400, 'INVALID_STATUS');
       }
 
       // Reserve stock at source warehouse
       for (const item of transfer.items) {
         const inventory = await Inventory.findOne({
-          where: { warehouseId: transfer.sourceWarehouseId, productId: item.productId },
-          transaction
+          where: { warehouse_id: transfer.from_warehouse_id, product_id: item.product_id },
+          transaction: t,
+          lock: t.LOCK.UPDATE
         });
 
-        const available = inventory.quantity - inventory.reservedQuantity;
-        if (available < item.quantity) {
+        const available = inventory.quantity_available - inventory.quantity_reserved;
+        if (available < item.quantity_requested) {
           throw new AppError(`Insufficient stock for product ${item.productId}`, 400, 'INSUFFICIENT_STOCK');
         }
 
         await inventory.update({
-          reservedQuantity: inventory.reservedQuantity + item.quantity
-        }, { transaction });
+          quantity_reserved: inventory.quantity_reserved + item.quantity_requested
+        }, { transaction: t });
       }
 
       await transfer.update({
-        status: 'approved',
-        approvedBy,
-        approvedAt: new Date()
-      }, { transaction });
+        status: 'APPROVED',
+        approved_by: approvedBy,
+        approved_at: new Date()
+      }, { transaction: t });
 
-      await transaction.commit();
+      await t.commit();
 
       return this.getTransferById(id);
     } catch (error) {
-      await transaction.rollback();
+      await t.rollback();
       throw error;
     }
   }
@@ -526,122 +556,130 @@ class InventoryService {
       throw new AppError('Transfer not found', 404, 'NOT_FOUND');
     }
 
-    if (transfer.status !== 'approved') {
+    if (transfer.status !== 'APPROVED') {
       throw new AppError('Only approved transfers can be shipped', 400, 'INVALID_STATUS');
     }
 
     await transfer.update({
-      status: 'in_transit',
-      shippedAt: new Date()
+      status: 'IN_TRANSIT',
+      shipped_at: new Date(),
+      shipped_by: shippedBy
     });
+
+    for (const item of transfer.items) {
+      await item.update({ quantity_shipped: item.quantity_requested });
+    }
 
     return this.getTransferById(id);
   }
 
   async receiveTransfer(id, receivedBy, receivedItems) {
-    const transaction = await sequelize.transaction();
+    const t = await sequelize.transaction();
 
     try {
       const transfer = await WarehouseTransfer.findByPk(id, {
         include: [{ model: WarehouseTransferItem, as: 'items' }],
-        transaction
+        transaction: t,
+        lock: t.LOCK.UPDATE
       });
 
       if (!transfer) {
         throw new AppError('Transfer not found', 404, 'NOT_FOUND');
       }
 
-      if (transfer.status !== 'in_transit') {
+      if (transfer.status !== 'IN_TRANSIT') {
         throw new AppError('Only in-transit transfers can be received', 400, 'INVALID_STATUS');
       }
 
       // Process each item
       for (const item of transfer.items) {
-        const receivedItem = receivedItems?.find(ri => ri.productId === item.productId);
-        const receivedQty = receivedItem ? receivedItem.receivedQuantity : item.quantity;
+        const receivedItem = receivedItems?.find(ri => ri.productId === item.product_id);
+        const receivedQty = receivedItem ? receivedItem.receivedQuantity : item.quantity_shipped || item.quantity_requested;
 
         // Update source warehouse - reduce quantity and reserved
         const sourceInventory = await Inventory.findOne({
-          where: { warehouseId: transfer.sourceWarehouseId, productId: item.productId },
-          transaction
+          where: { warehouse_id: transfer.from_warehouse_id, product_id: item.product_id },
+          transaction: t,
+          lock: t.LOCK.UPDATE
         });
 
         if (sourceInventory) {
           await sourceInventory.update({
-            quantity: sourceInventory.quantity - item.quantity,
-            reservedQuantity: sourceInventory.reservedQuantity - item.quantity
-          }, { transaction });
+            quantity_available: sourceInventory.quantity_available - item.quantity_requested,
+            quantity_reserved: sourceInventory.quantity_reserved - item.quantity_requested
+          }, { transaction: t });
 
           // Create outward transaction
           await InventoryTransaction.create({
-            warehouseId: transfer.sourceWarehouseId,
-            productId: item.productId,
-            transactionType: 'transfer_out',
-            quantity: item.quantity,
-            referenceType: 'transfer',
-            referenceId: transfer.id,
-            previousQuantity: sourceInventory.quantity,
-            newQuantity: sourceInventory.quantity - item.quantity,
-            notes: `Transfer to ${transfer.destinationWarehouseId}`,
-            createdBy: receivedBy
-          }, { transaction });
+            warehouse_id: transfer.from_warehouse_id,
+            product_id: item.product_id,
+            transaction_type: 'TRANSFER_OUT',
+            quantity: item.quantity_requested,
+            reference_type: 'TRANSFER',
+            reference_id: transfer.id,
+            quantity_before: sourceInventory.quantity_available,
+            quantity_after: sourceInventory.quantity_available - item.quantity_requested,
+            notes: `Transfer to ${transfer.to_warehouse_id}`,
+            created_by: receivedBy
+          }, { transaction: t });
         }
 
         // Update destination warehouse
         let destInventory = await Inventory.findOne({
-          where: { warehouseId: transfer.destinationWarehouseId, productId: item.productId },
-          transaction
+          where: { warehouse_id: transfer.to_warehouse_id, product_id: item.product_id },
+          transaction: t,
+          lock: t.LOCK.UPDATE
         });
 
-        const prevQty = destInventory ? destInventory.quantity : 0;
+        const prevQty = destInventory ? destInventory.quantity_available : 0;
 
         if (destInventory) {
           await destInventory.update({
-            quantity: destInventory.quantity + receivedQty
-          }, { transaction });
+            quantity_available: destInventory.quantity_available + receivedQty
+          }, { transaction: t });
         } else {
           destInventory = await Inventory.create({
-            warehouseId: transfer.destinationWarehouseId,
-            productId: item.productId,
-            quantity: receivedQty,
-            reservedQuantity: 0,
-            reorderLevel: 10,
-            maxStockLevel: 1000
-          }, { transaction });
+            warehouse_id: transfer.to_warehouse_id,
+            product_id: item.product_id,
+            quantity_available: receivedQty,
+            quantity_reserved: 0,
+            quantity_damaged: 0,
+            reorder_point: 10
+          }, { transaction: t });
         }
 
         // Create inward transaction
         await InventoryTransaction.create({
-          warehouseId: transfer.destinationWarehouseId,
-          productId: item.productId,
-          transactionType: 'transfer_in',
+          warehouse_id: transfer.to_warehouse_id,
+          product_id: item.product_id,
+          transaction_type: 'TRANSFER_IN',
           quantity: receivedQty,
-          referenceType: 'transfer',
-          referenceId: transfer.id,
-          previousQuantity: prevQty,
-          newQuantity: prevQty + receivedQty,
-          notes: `Transfer from ${transfer.sourceWarehouseId}`,
-          createdBy: receivedBy
-        }, { transaction });
+          reference_type: 'TRANSFER',
+          reference_id: transfer.id,
+          quantity_before: prevQty,
+          quantity_after: prevQty + receivedQty,
+          notes: `Transfer from ${transfer.from_warehouse_id}`,
+          created_by: receivedBy
+        }, { transaction: t });
 
         // Update item received quantity
         await WarehouseTransferItem.update(
-          { receivedQuantity: receivedQty },
-          { where: { id: item.id }, transaction }
+          { quantity_received: receivedQty },
+          { where: { id: item.id }, transaction: t }
         );
       }
 
       await transfer.update({
-        status: 'completed',
-        receivedBy,
-        receivedAt: new Date()
-      }, { transaction });
+        status: 'COMPLETED',
+        received_by: receivedBy,
+        received_at: new Date()
+      }, { transaction: t });
 
-      await transaction.commit();
+      await t.commit();
 
       return this.getTransferById(id);
     } catch (error) {
-      await transaction.rollback();
+      await t.rollback();
       throw error;
     }
   }
@@ -649,17 +687,17 @@ class InventoryService {
   // ==================== LOW STOCK ALERTS ====================
 
   async getLowStockItems(warehouseId) {
-    const where = { quantity: { [Op.lte]: sequelize.col('reorderLevel') } };
-    if (warehouseId) where.warehouseId = warehouseId;
+    const where = { quantity_available: { [Op.lte]: sequelize.col('reorder_point') } };
+    if (warehouseId) where.warehouse_id = warehouseId;
 
     const items = await Inventory.findAll({
       where,
       include: [
-        { model: Product, as: 'product', attributes: ['id', 'name', 'sku'] },
-        { model: Warehouse, as: 'warehouse', attributes: ['id', 'name', 'code'] }
+        { model: Product, attributes: ['id', 'product_name', 'sku'] },
+        { model: Warehouse, attributes: ['id', 'warehouse_name', 'warehouse_code'] }
       ],
       order: [
-        [sequelize.literal('quantity - reorderLevel'), 'ASC']
+        [sequelize.literal('quantity_available - reorder_point'), 'ASC']
       ]
     });
 
@@ -670,13 +708,13 @@ class InventoryService {
 
   async getInventoryValuation(warehouseId) {
     const where = {};
-    if (warehouseId) where.warehouseId = warehouseId;
+    if (warehouseId) where.warehouse_id = warehouseId;
 
     const inventory = await Inventory.findAll({
       where,
       include: [
-        { model: Product, as: 'product', attributes: ['id', 'name', 'sku', 'purchasePrice', 'sellingPrice'] },
-        { model: Warehouse, as: 'warehouse', attributes: ['id', 'name', 'code'] }
+        { model: Product, attributes: ['id', 'product_name', 'sku', 'cost_price', 'selling_price'] },
+        { model: Warehouse, attributes: ['id', 'warehouse_name', 'warehouse_code'] }
       ]
     });
 
@@ -684,15 +722,15 @@ class InventoryService {
     let totalRetailValue = 0;
 
     const items = inventory.map(inv => {
-      const costValue = inv.quantity * (inv.product.purchasePrice || 0);
-      const retailValue = inv.quantity * (inv.product.sellingPrice || 0);
+      const costValue = inv.quantity_available * (inv.Product?.cost_price || 0);
+      const retailValue = inv.quantity_available * (inv.Product?.selling_price || 0);
       totalCostValue += costValue;
       totalRetailValue += retailValue;
 
       return {
-        warehouse: inv.warehouse,
-        product: inv.product,
-        quantity: inv.quantity,
+        warehouse: inv.Warehouse,
+        product: inv.Product,
+        quantity: inv.quantity_available,
         costValue,
         retailValue
       };

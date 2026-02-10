@@ -40,8 +40,26 @@ class CreditManager {
         0
       );
 
-      const totalExposure = totalOutstanding + newOrderAmount;
-      const availableCredit = customer.credit_limit - totalOutstanding;
+      // Include pending/processing orders not yet invoiced
+      const pendingOrders = await SalesOrder.findAll({
+        where: {
+          customer_id: customerId,
+          status: {
+            [Op.in]: ['PENDING', 'CONFIRMED', 'PROCESSING', 'PACKED', 'ON_HOLD']
+          },
+          payment_status: {
+            [Op.in]: ['UNPAID', 'PARTIALLY_PAID']
+          }
+        }
+      });
+
+      const pendingExposure = pendingOrders.reduce(
+        (sum, order) => sum + parseFloat(order.total_amount || 0),
+        0
+      );
+
+      const totalExposure = totalOutstanding + pendingExposure + newOrderAmount;
+      const availableCredit = customer.credit_limit - (totalOutstanding + pendingExposure);
 
       if (totalExposure > customer.credit_limit) {
         return {
@@ -50,6 +68,7 @@ class CreditManager {
           currentUsage: totalOutstanding,
           availableCredit,
           newOrderAmount,
+          pendingExposure,
           totalExposure,
           exceeded: totalExposure - customer.credit_limit,
           message: `Credit limit exceeded. Available credit: ${availableCredit}, Required: ${newOrderAmount}`
@@ -62,6 +81,7 @@ class CreditManager {
         currentUsage: totalOutstanding,
         availableCredit,
         newOrderAmount,
+        pendingExposure,
         totalExposure,
         message: 'Credit check passed'
       };

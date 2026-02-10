@@ -66,6 +66,21 @@ exports.createDispatch = async (req, res, next) => {
   }
 };
 
+exports.updateStatus = async (req, res, next) => {
+  try {
+    const { status } = req.body;
+    const dispatch = await dispatchService.updateStatus(req.params.id, status);
+    res.json({
+      success: true,
+      data: dispatch,
+      message: 'Dispatch status updated',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 exports.startPicking = async (req, res, next) => {
   try {
     const dispatch = await dispatchService.startPicking(req.params.id, req.user.id);

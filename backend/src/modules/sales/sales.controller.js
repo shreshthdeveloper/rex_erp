@@ -97,6 +97,21 @@ exports.cancelOrder = async (req, res, next) => {
   }
 };
 
+exports.deleteOrder = async (req, res, next) => {
+  try {
+    const order = await salesService.deleteOrder(req.params.id);
+
+    res.json({
+      success: true,
+      data: order,
+      message: 'Order deleted successfully',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 exports.confirmOrder = async (req, res, next) => {
   try {
     const order = await salesService.confirmOrder(req.params.id, req.user.id);

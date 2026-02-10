@@ -9,18 +9,22 @@ import { Card, CardHeader, CardTitle, CardBody, Button, Badge, TableSkeleton } f
 export default function Payments() {
   const [filters, setFilters] = useState({
     search: '',
-    type: '',
     status: '',
   });
+  const [scope, setScope] = useState('customer');
   const [page, setPage] = useState(1);
   
   const { data, isLoading } = useQuery({
-    queryKey: ['payments', filters, page],
-    queryFn: () => paymentsAPI.getAll({ ...filters, page, limit: 20 }),
+    queryKey: ['payments', scope, filters, page],
+    queryFn: () => (
+      scope === 'customer'
+        ? paymentsAPI.getCustomerPayments({ ...filters, page, limit: 20 })
+        : paymentsAPI.getSupplierPayments({ ...filters, page, limit: 20 })
+    ),
   });
   
   const payments = data?.data?.payments || [];
-  const totalPages = data?.data?.totalPages || 1;
+  const totalPages = data?.data?.pagination?.totalPages || 1;
   
   const getStatusConfig = (status) => {
     const statuses = {
@@ -32,19 +36,10 @@ export default function Payments() {
     return statuses[status] || { label: status, color: 'secondary' };
   };
   
-  const getTypeLabel = (type) => {
-    const types = {
-      RECEIVED: 'Received',
-      MADE: 'Made',
-      REFUND: 'Refund',
-    };
-    return types[type] || type;
-  };
-  
   const stats = {
     total: payments.length,
-    received: payments.filter(p => p.type === 'RECEIVED').reduce((sum, p) => sum + parseFloat(p.amount || 0), 0),
-    made: payments.filter(p => p.type === 'MADE').reduce((sum, p) => sum + parseFloat(p.amount || 0), 0),
+    received: scope === 'customer' ? payments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0) : 0,
+    made: scope === 'supplier' ? payments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0) : 0,
     pending: payments.filter(p => p.status === 'PENDING').length,
   };
   
@@ -62,6 +57,21 @@ export default function Payments() {
             Record Payment
           </Button>
         </Link>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <Button
+          variant={scope === 'customer' ? 'primary' : 'secondary'}
+          onClick={() => setScope('customer')}
+        >
+          Customer Payments
+        </Button>
+        <Button
+          variant={scope === 'supplier' ? 'primary' : 'secondary'}
+          onClick={() => setScope('supplier')}
+        >
+          Supplier Payments
+        </Button>
       </div>
       
       {/* Stats */}
@@ -139,17 +149,6 @@ export default function Payments() {
             </div>
             
             <select
-              value={filters.type}
-              onChange={(e) => setFilters(prev => ({ ...prev, type: e.target.value }))}
-              className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-            >
-              <option value="">All Types</option>
-              <option value="RECEIVED">Received</option>
-              <option value="MADE">Made</option>
-              <option value="REFUND">Refund</option>
-            </select>
-            
-            <select
               value={filters.status}
               onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
               className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
@@ -202,7 +201,7 @@ export default function Payments() {
                     return (
                       <tr key={payment.id} className="border-b border-gray-50 hover:bg-gray-50">
                         <td className="py-4 px-6">
-                          <Link to={`/payments/${payment.id}`} className="font-medium text-primary-600 hover:text-primary-700">
+                          <Link to={`/payments/${payment.id}?scope=${scope}`} className="font-medium text-primary-600 hover:text-primary-700">
                             {payment.payment_number}
                           </Link>
                         </td>
@@ -210,18 +209,18 @@ export default function Payments() {
                           {format(new Date(payment.payment_date), 'MMM dd, yyyy')}
                         </td>
                         <td className="py-4 px-6">
-                          <Badge variant={payment.type === 'RECEIVED' ? 'success' : payment.type === 'MADE' ? 'warning' : 'info'}>
-                            {getTypeLabel(payment.type)}
+                          <Badge variant={scope === 'customer' ? 'success' : 'warning'}>
+                            {scope === 'customer' ? 'Received' : 'Made'}
                           </Badge>
                         </td>
                         <td className="py-4 px-6">
-                          {payment.invoice ? (
+                          {scope === 'customer' && payment.Invoice ? (
                             <Link to={`/sales/invoices/${payment.invoice_id}`} className="text-gray-900 hover:text-primary-600">
-                              {payment.invoice.invoice_number}
+                              {payment.Invoice.invoice_number}
                             </Link>
-                          ) : payment.purchase_order ? (
+                          ) : scope === 'supplier' && payment.PurchaseOrder ? (
                             <Link to={`/purchase/orders/${payment.purchase_order_id}`} className="text-gray-900 hover:text-primary-600">
-                              {payment.purchase_order.po_number}
+                              {payment.PurchaseOrder.po_number}
                             </Link>
                           ) : (
                             <span className="text-gray-400">-</span>
@@ -233,16 +232,16 @@ export default function Payments() {
                           </Badge>
                         </td>
                         <td className="py-4 px-6 text-gray-500">
-                          {payment.payment_method || '-'}
+                          {payment.PaymentMethod?.method_name || '-'}
                         </td>
                         <td className="py-4 px-6 text-right">
-                          <span className={`font-semibold ${payment.type === 'RECEIVED' ? 'text-green-600' : 'text-red-600'}`}>
-                            {payment.type === 'RECEIVED' ? '+' : '-'}${parseFloat(payment.amount || 0).toLocaleString()}
+                          <span className={`font-semibold ${scope === 'customer' ? 'text-green-600' : 'text-red-600'}`}>
+                            {scope === 'customer' ? '+' : '-'}${parseFloat(payment.amount || 0).toLocaleString()}
                           </span>
                         </td>
                         <td className="py-4 px-6 text-right">
                           <Link
-                            to={`/payments/${payment.id}`}
+                            to={`/payments/${payment.id}?scope=${scope}`}
                             className="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
                           >
                             <Eye className="w-4 h-4" />

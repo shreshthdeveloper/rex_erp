@@ -24,12 +24,24 @@ const CustomerPayment = sequelize.define('CustomerPayment', {
     type: DataTypes.INTEGER.UNSIGNED,
     allowNull: false
   },
+  invoice_id: {
+    type: DataTypes.INTEGER.UNSIGNED,
+    allowNull: true
+  },
   amount: {
     type: DataTypes.DECIMAL(15, 2),
     allowNull: false
   },
   reference_number: {
     type: DataTypes.STRING(100),
+    allowNull: true
+  },
+  status: {
+    type: DataTypes.ENUM('PENDING', 'COMPLETED', 'FAILED', 'CANCELLED', 'REFUNDED', 'BOUNCED'),
+    defaultValue: 'PENDING'
+  },
+  status_notes: {
+    type: DataTypes.TEXT,
     allowNull: true
   },
   notes: {

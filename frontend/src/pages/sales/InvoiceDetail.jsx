@@ -26,11 +26,11 @@ import {
 
 function getStatusColor(status) {
   switch (status) {
-    case 'paid':
+    case 'PAID':
       return 'success';
-    case 'pending':
+    case 'PARTIALLY_PAID':
       return 'warning';
-    case 'overdue':
+    case 'UNPAID':
       return 'danger';
     default:
       return 'secondary';
@@ -62,8 +62,8 @@ export default function InvoiceDetail() {
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold text-gray-900">{invoice?.invoice_number}</h1>
-              <Badge color={getStatusColor(invoice?.status)}>
-                {invoice?.status}
+              <Badge color={getStatusColor(invoice?.payment_status)}>
+                {invoice?.payment_status}
               </Badge>
             </div>
             <p className="text-gray-500 mt-1">

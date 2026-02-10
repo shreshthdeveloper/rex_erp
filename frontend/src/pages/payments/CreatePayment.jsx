@@ -12,18 +12,17 @@ export default function CreatePayment() {
   const [searchParams] = useSearchParams();
   const invoiceIdFromUrl = searchParams.get('invoice_id');
   
-  const [paymentType, setPaymentType] = useState('RECEIVED');
+  const [paymentType, setPaymentType] = useState('customer');
   const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
   const [poModalOpen, setPoModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm({
     defaultValues: {
-      type: 'RECEIVED',
       payment_date: new Date().toISOString().split('T')[0],
       amount: '',
       payment_method: '',
-      reference: '',
+      reference_number: '',
       invoice_id: invoiceIdFromUrl || '',
       purchase_order_id: '',
       customer_id: '',
@@ -38,25 +37,25 @@ export default function CreatePayment() {
   const { data: customersData } = useQuery({
     queryKey: ['customers-list'],
     queryFn: () => customersAPI.getAll({ limit: 100 }),
-    enabled: paymentType === 'RECEIVED',
+    enabled: paymentType === 'customer',
   });
   
   const { data: suppliersData } = useQuery({
     queryKey: ['suppliers-list'],
     queryFn: () => suppliersAPI.getAll({ limit: 100 }),
-    enabled: paymentType === 'MADE',
+    enabled: paymentType === 'supplier',
   });
   
   const { data: invoicesData } = useQuery({
     queryKey: ['invoices-unpaid', searchQuery],
     queryFn: () => invoicesAPI.getAll({ status: 'UNPAID', search: searchQuery, limit: 50 }),
-    enabled: paymentType === 'RECEIVED',
+    enabled: paymentType === 'customer',
   });
   
   const { data: posData } = useQuery({
     queryKey: ['pos-pending', searchQuery],
     queryFn: () => purchaseOrdersAPI.getAll({ status: 'CONFIRMED', search: searchQuery, limit: 50 }),
-    enabled: paymentType === 'MADE',
+    enabled: paymentType === 'supplier',
   });
   
   const { data: selectedInvoice } = useQuery({
@@ -77,10 +76,14 @@ export default function CreatePayment() {
   const purchaseOrders = posData?.data?.purchaseOrders || [];
   
   const createMutation = useMutation({
-    mutationFn: (data) => paymentsAPI.create(data),
+    mutationFn: (data) => (
+      paymentType === 'customer'
+        ? paymentsAPI.createCustomerPayment(data)
+        : paymentsAPI.createSupplierPayment(data)
+    ),
     onSuccess: (response) => {
       toast.success('Payment recorded successfully');
-      navigate(`/payments/${response.data.id}`);
+      navigate(`/payments/${response.data.id}?scope=${paymentType}`);
     },
     onError: (error) => {
       toast.error(error.response?.data?.message || 'Failed to record payment');
@@ -89,7 +92,6 @@ export default function CreatePayment() {
   
   const handleTypeChange = (type) => {
     setPaymentType(type);
-    setValue('type', type);
     setValue('invoice_id', '');
     setValue('purchase_order_id', '');
     setValue('customer_id', '');
@@ -101,11 +103,24 @@ export default function CreatePayment() {
       toast.error('Please enter amount');
       return;
     }
-    
-    createMutation.mutate({
-      ...data,
+
+    const payload = {
       amount: parseFloat(data.amount),
-    });
+      paymentMethod: data.payment_method,
+      paymentDate: data.payment_date,
+      referenceNumber: data.reference_number,
+      notes: data.notes,
+    };
+
+    if (paymentType === 'customer') {
+      payload.customerId = Number(data.customer_id);
+      payload.invoiceId = Number(data.invoice_id);
+    } else {
+      payload.supplierId = Number(data.supplier_id);
+      payload.purchaseOrderId = data.purchase_order_id ? Number(data.purchase_order_id) : null;
+    }
+
+    createMutation.mutate(payload);
   };
   
   return (
@@ -143,18 +158,18 @@ export default function CreatePayment() {
                 <div className="flex gap-4">
                   <button
                     type="button"
-                    onClick={() => handleTypeChange('RECEIVED')}
+                    onClick={() => handleTypeChange('customer')}
                     className={`flex-1 p-4 rounded-lg border-2 transition-colors ${
-                      paymentType === 'RECEIVED'
+                      paymentType === 'customer'
                         ? 'border-green-500 bg-green-50'
                         : 'border-gray-200 hover:border-gray-300'
                     }`}
                   >
                     <div className="flex flex-col items-center gap-2">
                       <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                        paymentType === 'RECEIVED' ? 'bg-green-100' : 'bg-gray-100'
+                        paymentType === 'customer' ? 'bg-green-100' : 'bg-gray-100'
                       }`}>
-                        <User className={`w-6 h-6 ${paymentType === 'RECEIVED' ? 'text-green-600' : 'text-gray-400'}`} />
+                        <User className={`w-6 h-6 ${paymentType === 'customer' ? 'text-green-600' : 'text-gray-400'}`} />
                       </div>
                       <p className="font-medium text-gray-900">Payment Received</p>
                       <p className="text-sm text-gray-500">From customers</p>
@@ -163,18 +178,18 @@ export default function CreatePayment() {
                   
                   <button
                     type="button"
-                    onClick={() => handleTypeChange('MADE')}
+                    onClick={() => handleTypeChange('supplier')}
                     className={`flex-1 p-4 rounded-lg border-2 transition-colors ${
-                      paymentType === 'MADE'
+                      paymentType === 'supplier'
                         ? 'border-red-500 bg-red-50'
                         : 'border-gray-200 hover:border-gray-300'
                     }`}
                   >
                     <div className="flex flex-col items-center gap-2">
                       <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                        paymentType === 'MADE' ? 'bg-red-100' : 'bg-gray-100'
+                        paymentType === 'supplier' ? 'bg-red-100' : 'bg-gray-100'
                       }`}>
-                        <Building2 className={`w-6 h-6 ${paymentType === 'MADE' ? 'text-red-600' : 'text-gray-400'}`} />
+                        <Building2 className={`w-6 h-6 ${paymentType === 'supplier' ? 'text-red-600' : 'text-gray-400'}`} />
                       </div>
                       <p className="font-medium text-gray-900">Payment Made</p>
                       <p className="text-sm text-gray-500">To suppliers</p>
@@ -190,7 +205,7 @@ export default function CreatePayment() {
                 <CardTitle>Reference Document</CardTitle>
               </CardHeader>
               <CardBody>
-                {paymentType === 'RECEIVED' ? (
+                {paymentType === 'customer' ? (
                   selectedInvoice?.data ? (
                     <div className="bg-gray-50 rounded-lg p-4">
                       <div className="flex items-center justify-between">
@@ -201,7 +216,7 @@ export default function CreatePayment() {
                           <div>
                             <p className="font-medium text-gray-900">{selectedInvoice.data.invoice_number}</p>
                             <p className="text-sm text-gray-500">
-                              {selectedInvoice.data.customer?.name} • ${parseFloat(selectedInvoice.data.total_amount || 0).toLocaleString()}
+                              {selectedInvoice.data.Customer?.company_name || selectedInvoice.data.customer?.company_name} • ${parseFloat(selectedInvoice.data.total_amount || 0).toLocaleString()}
                             </p>
                           </div>
                         </div>
@@ -227,7 +242,7 @@ export default function CreatePayment() {
                           <div>
                             <p className="font-medium text-gray-900">{selectedPO.data.po_number}</p>
                             <p className="text-sm text-gray-500">
-                              {selectedPO.data.supplier?.name} • ${parseFloat(selectedPO.data.total_amount || 0).toLocaleString()}
+                              {selectedPO.data.Supplier?.company_name || selectedPO.data.supplier?.company_name} • ${parseFloat(selectedPO.data.total_amount || 0).toLocaleString()}
                             </p>
                           </div>
                         </div>
@@ -301,7 +316,7 @@ export default function CreatePayment() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Reference</label>
                     <input
                       type="text"
-                      {...register('reference')}
+                      {...register('reference_number')}
                       className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                       placeholder="Transaction ref / Check no."
                     />
@@ -326,10 +341,10 @@ export default function CreatePayment() {
             {/* Party Selection */}
             <Card>
               <CardHeader>
-                <CardTitle>{paymentType === 'RECEIVED' ? 'Customer' : 'Supplier'}</CardTitle>
+                <CardTitle>{paymentType === 'customer' ? 'Customer' : 'Supplier'}</CardTitle>
               </CardHeader>
               <CardBody>
-                {paymentType === 'RECEIVED' ? (
+                {paymentType === 'customer' ? (
                   <SearchableSelect
                     options={customers.map(c => ({ value: c.id, label: c.name }))}
                     value={watch('customer_id')}
@@ -357,12 +372,12 @@ export default function CreatePayment() {
                   <div className="flex justify-between">
                     <span className="text-gray-500">Type</span>
                     <span className="font-medium text-gray-900">
-                      {paymentType === 'RECEIVED' ? 'Received' : 'Made'}
+                      {paymentType === 'customer' ? 'Received' : 'Made'}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-500">Amount</span>
-                    <span className={`font-semibold ${paymentType === 'RECEIVED' ? 'text-green-600' : 'text-red-600'}`}>
+                    <span className={`font-semibold ${paymentType === 'customer' ? 'text-green-600' : 'text-red-600'}`}>
                       ${parseFloat(watch('amount') || 0).toLocaleString()}
                     </span>
                   </div>

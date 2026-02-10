@@ -17,12 +17,14 @@ exports.getInvoices = async (req, res, next) => {
 
     res.json({
       success: true,
-      data: result.invoices,
-      pagination: {
-        page: result.page,
-        limit,
-        total: result.total,
-        totalPages: result.totalPages
+      data: {
+        invoices: result.invoices,
+        pagination: {
+          page: result.page,
+          limit,
+          total: result.total,
+          totalPages: result.totalPages
+        }
       },
       timestamp: new Date().toISOString()
     });

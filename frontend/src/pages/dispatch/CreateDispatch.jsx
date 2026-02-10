@@ -84,15 +84,13 @@ export default function CreateDispatch() {
     }
     
     const submitData = {
-      sales_order_id: data.sales_order_id,
-      dispatch_date: data.dispatch_date,
-      expected_delivery_date: data.expected_delivery_date || null,
-      carrier: data.carrier || null,
-      tracking_number: data.tracking_number || null,
+      salesOrderId: data.sales_order_id,
+      expectedDeliveryDate: data.expected_delivery_date || null,
+      carrierId: data.carrier ? Number(data.carrier) : undefined,
       notes: data.notes || null,
       items: data.items.map(item => ({
-        product_id: item.product_id,
-        dispatched_quantity: parseInt(item.dispatched_quantity),
+        productId: item.product_id,
+        dispatchQuantity: parseInt(item.dispatched_quantity, 10),
       })),
     };
     

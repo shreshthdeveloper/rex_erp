@@ -6,11 +6,12 @@ export const useAuthStore = create(
     (set, get) => ({
       user: null,
       token: null,
+      refreshToken: null,
       isAuthenticated: false,
       permissions: [],
       roles: [],
 
-      setAuth: (user, token) => {
+      setAuth: (user, token, refreshToken = null) => {
         // Extract permissions from user roles (backend returns Roles array)
         const userRoles = user?.Roles || [];
         const permissions = [];
@@ -24,6 +25,7 @@ export const useAuthStore = create(
         set({ 
           user, 
           token, 
+          refreshToken,
           isAuthenticated: true,
           permissions,
           roles: userRoles.map(r => r.role_name)
@@ -38,6 +40,7 @@ export const useAuthStore = create(
         set({ 
           user: null, 
           token: null, 
+          refreshToken: null,
           isAuthenticated: false,
           permissions: [],
           roles: []
@@ -67,6 +70,7 @@ export const useAuthStore = create(
       partialize: (state) => ({ 
         user: state.user, 
         token: state.token,
+        refreshToken: state.refreshToken,
         isAuthenticated: state.isAuthenticated,
         permissions: state.permissions,
         roles: state.roles

@@ -79,12 +79,14 @@ exports.getAdjustments = async (req, res, next) => {
 
     res.json({
       success: true,
-      data: result.adjustments,
-      pagination: {
-        page: result.page,
-        limit,
-        total: result.total,
-        totalPages: result.totalPages
+      data: {
+        adjustments: result.adjustments,
+        pagination: {
+          page: result.page,
+          limit,
+          total: result.total,
+          totalPages: result.totalPages
+        }
       },
       timestamp: new Date().toISOString()
     });
@@ -179,12 +181,14 @@ exports.getTransfers = async (req, res, next) => {
 
     res.json({
       success: true,
-      data: result.transfers,
-      pagination: {
-        page: result.page,
-        limit,
-        total: result.total,
-        totalPages: result.totalPages
+      data: {
+        transfers: result.transfers,
+        pagination: {
+          page: result.page,
+          limit,
+          total: result.total,
+          totalPages: result.totalPages
+        }
       },
       timestamp: new Date().toISOString()
     });

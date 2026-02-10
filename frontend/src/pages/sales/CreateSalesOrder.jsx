@@ -46,13 +46,12 @@ export default function CreateSalesOrder() {
       warehouse_id: '',
       order_date: new Date().toISOString().split('T')[0],
       items: [],
-      shipping_address: {
-        street: '',
-        city: '',
-        state: '',
-        zip_code: '',
-        country: '',
-      },
+      shipping_address_line1: '',
+      shipping_address_line2: '',
+      shipping_city: '',
+      shipping_state_id: '',
+      shipping_country_id: '',
+      shipping_postal_code: '',
       notes: '',
       discount_amount: 0,
       shipping_amount: 0,
@@ -115,15 +114,12 @@ export default function CreateSalesOrder() {
     setValue('customer_id', customerId);
     
     // Auto-fill shipping address if available
-    if (customer?.address) {
-      setValue('shipping_address', {
-        street: customer.address.street || '',
-        city: customer.address.city || '',
-        state: customer.address.state || '',
-        zip_code: customer.address.zip_code || '',
-        country: customer.address.country || '',
-      });
-    }
+    setValue('shipping_address_line1', customer?.shipping_address_line1 || '');
+    setValue('shipping_address_line2', customer?.shipping_address_line2 || '');
+    setValue('shipping_city', customer?.shipping_city || '');
+    setValue('shipping_state_id', customer?.shipping_state_id || '');
+    setValue('shipping_country_id', customer?.shipping_country_id || '');
+    setValue('shipping_postal_code', customer?.shipping_postal_code || '');
   };
 
   const handleWarehouseSelect = (warehouseId) => {
@@ -141,10 +137,11 @@ export default function CreateSalesOrder() {
     } else {
       append({
         product_id: product.id,
-        product_name: product.name,
+        product_name: product.product_name || product.name,
         sku: product.sku,
         quantity: 1,
         unit_price: product.selling_price || product.price,
+        tax_percent: taxRate,
       });
     }
     
@@ -157,9 +154,17 @@ export default function CreateSalesOrder() {
       toast.error('Please add at least one item');
       return;
     }
-    
+
+    const itemsWithTax = data.items.map((item) => ({
+      ...item,
+      tax_percent: item.tax_percent ?? taxRate,
+    }));
+
     createMutation.mutate({
       ...data,
+      items: itemsWithTax,
+      shipping_state_id: data.shipping_state_id ? Number(data.shipping_state_id) : null,
+      shipping_country_id: data.shipping_country_id ? Number(data.shipping_country_id) : null,
       subtotal,
       tax_amount: taxAmount,
       total_amount: total,
@@ -381,16 +386,25 @@ export default function CreateSalesOrder() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Street Address</label>
                     <input
                       type="text"
-                      {...register('shipping_address.street')}
+                      {...register('shipping_address_line1')}
                       className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                       placeholder="123 Main Street"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Address Line 2</label>
+                    <input
+                      type="text"
+                      {...register('shipping_address_line2')}
+                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      placeholder="Suite, unit, etc."
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
                     <input
                       type="text"
-                      {...register('shipping_address.city')}
+                      {...register('shipping_city')}
                       className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                       placeholder="City"
                     />
@@ -398,17 +412,17 @@ export default function CreateSalesOrder() {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">State/Province</label>
                     <input
-                      type="text"
-                      {...register('shipping_address.state')}
+                      type="number"
+                      {...register('shipping_state_id')}
                       className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                      placeholder="State"
+                      placeholder="State ID"
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">ZIP/Postal Code</label>
                     <input
                       type="text"
-                      {...register('shipping_address.zip_code')}
+                      {...register('shipping_postal_code')}
                       className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                       placeholder="12345"
                     />
@@ -416,10 +430,10 @@ export default function CreateSalesOrder() {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
                     <input
-                      type="text"
-                      {...register('shipping_address.country')}
+                      type="number"
+                      {...register('shipping_country_id')}
                       className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                      placeholder="Country"
+                      placeholder="Country ID"
                     />
                   </div>
                 </div>

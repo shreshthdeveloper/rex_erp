@@ -1,4 +1,4 @@
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { ArrowLeft, CreditCard, FileText, User, Building2, Printer, DollarSign } from 'lucide-react';
@@ -8,10 +8,15 @@ import { Card, CardHeader, CardTitle, CardBody, Button, Badge, LoadingScreen } f
 export default function PaymentDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const scope = new URLSearchParams(location.search).get('scope') || 'customer';
   
   const { data, isLoading, error } = useQuery({
-    queryKey: ['payment', id],
-    queryFn: () => paymentsAPI.getById(id),
+    queryKey: ['payment', scope, id],
+    queryFn: () => (scope === 'supplier'
+      ? paymentsAPI.getSupplierPaymentById(id)
+      : paymentsAPI.getCustomerPaymentById(id)
+    ),
   });
   
   const payment = data?.data;
@@ -26,14 +31,7 @@ export default function PaymentDetail() {
     return statuses[status] || { label: status, color: 'secondary' };
   };
   
-  const getTypeLabel = (type) => {
-    const types = {
-      RECEIVED: 'Payment Received',
-      MADE: 'Payment Made',
-      REFUND: 'Refund',
-    };
-    return types[type] || type;
-  };
+  const getTypeLabel = () => (scope === 'customer' ? 'Payment Received' : 'Payment Made');
   
   if (isLoading) return <LoadingScreen />;
   
@@ -67,7 +65,7 @@ export default function PaymentDetail() {
               </Badge>
             </div>
             <p className="text-gray-500 mt-1">
-              {getTypeLabel(payment.type)} • {format(new Date(payment.payment_date), 'MMMM dd, yyyy')}
+              {getTypeLabel()} • {format(new Date(payment.payment_date), 'MMMM dd, yyyy')}
             </p>
           </div>
         </div>
@@ -78,11 +76,11 @@ export default function PaymentDetail() {
       </div>
       
       {/* Amount Card */}
-      <Card className={`${payment.type === 'RECEIVED' ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
+      <Card className={`${scope === 'customer' ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
         <CardBody>
           <div className="text-center py-4">
-            <p className="text-sm font-medium text-gray-600 mb-2">{getTypeLabel(payment.type)}</p>
-            <p className={`text-4xl font-bold ${payment.type === 'RECEIVED' ? 'text-green-600' : 'text-red-600'}`}>
+            <p className="text-sm font-medium text-gray-600 mb-2">{getTypeLabel()}</p>
+            <p className={`text-4xl font-bold ${scope === 'customer' ? 'text-green-600' : 'text-red-600'}`}>
               ${parseFloat(payment.amount || 0).toLocaleString()}
             </p>
           </div>
@@ -111,11 +109,11 @@ export default function PaymentDetail() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-500 mb-1">Payment Method</p>
-                  <p className="font-medium text-gray-900">{payment.payment_method || 'Not specified'}</p>
+                  <p className="font-medium text-gray-900">{payment.PaymentMethod?.method_name || 'Not specified'}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500 mb-1">Reference</p>
-                  <p className="font-medium text-gray-900">{payment.reference || '-'}</p>
+                  <p className="font-medium text-gray-900">{payment.reference_number || '-'}</p>
                 </div>
               </div>
               
@@ -129,13 +127,13 @@ export default function PaymentDetail() {
           </Card>
           
           {/* Related Document */}
-          {(payment.invoice || payment.purchase_order) && (
+          {(payment.Invoice || payment.PurchaseOrder) && (
             <Card>
               <CardHeader>
                 <CardTitle>Related Document</CardTitle>
               </CardHeader>
               <CardBody>
-                {payment.invoice && (
+                {payment.Invoice && (
                   <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
@@ -147,20 +145,20 @@ export default function PaymentDetail() {
                           to={`/sales/invoices/${payment.invoice_id}`}
                           className="text-primary-600 hover:text-primary-700"
                         >
-                          {payment.invoice.invoice_number}
+                          {payment.Invoice.invoice_number}
                         </Link>
                       </div>
                     </div>
                     <div className="text-right">
                       <p className="text-sm text-gray-500">Invoice Amount</p>
                       <p className="font-semibold text-gray-900">
-                        ${parseFloat(payment.invoice.total_amount || 0).toLocaleString()}
+                        ${parseFloat(payment.Invoice.total_amount || 0).toLocaleString()}
                       </p>
                     </div>
                   </div>
                 )}
                 
-                {payment.purchase_order && (
+                {payment.PurchaseOrder && (
                   <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
@@ -172,14 +170,14 @@ export default function PaymentDetail() {
                           to={`/purchase/orders/${payment.purchase_order_id}`}
                           className="text-primary-600 hover:text-primary-700"
                         >
-                          {payment.purchase_order.po_number}
+                          {payment.PurchaseOrder.po_number}
                         </Link>
                       </div>
                     </div>
                     <div className="text-right">
                       <p className="text-sm text-gray-500">PO Amount</p>
                       <p className="font-semibold text-gray-900">
-                        ${parseFloat(payment.purchase_order.total_amount || 0).toLocaleString()}
+                        ${parseFloat(payment.PurchaseOrder.total_amount || 0).toLocaleString()}
                       </p>
                     </div>
                   </div>
@@ -194,45 +192,45 @@ export default function PaymentDetail() {
           {/* Party Info */}
           <Card>
             <CardHeader>
-              <CardTitle>{payment.type === 'RECEIVED' ? 'From' : 'To'}</CardTitle>
+              <CardTitle>{scope === 'customer' ? 'From' : 'To'}</CardTitle>
             </CardHeader>
             <CardBody>
-              {payment.customer ? (
+              {payment.Customer ? (
                 <div className="flex items-start gap-4">
                   <div className="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center">
                     <User className="w-6 h-6 text-primary-600" />
                   </div>
                   <div>
-                    <p className="font-medium text-gray-900">{payment.customer.name}</p>
-                    {payment.customer.email && (
-                      <p className="text-sm text-gray-500">{payment.customer.email}</p>
+                    <p className="font-medium text-gray-900">{payment.Customer.company_name}</p>
+                    {payment.Customer.email && (
+                      <p className="text-sm text-gray-500">{payment.Customer.email}</p>
                     )}
-                    {payment.customer.phone && (
-                      <p className="text-sm text-gray-500">{payment.customer.phone}</p>
+                    {payment.Customer.phone && (
+                      <p className="text-sm text-gray-500">{payment.Customer.phone}</p>
                     )}
                     <Link 
-                      to={`/customers/${payment.customer.id}`}
+                      to={`/customers/${payment.Customer.id}`}
                       className="text-sm text-primary-600 hover:text-primary-700 mt-2 inline-block"
                     >
                       View Customer
                     </Link>
                   </div>
                 </div>
-              ) : payment.supplier ? (
+              ) : payment.Supplier ? (
                 <div className="flex items-start gap-4">
                   <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
                     <Building2 className="w-6 h-6 text-purple-600" />
                   </div>
                   <div>
-                    <p className="font-medium text-gray-900">{payment.supplier.name}</p>
-                    {payment.supplier.email && (
-                      <p className="text-sm text-gray-500">{payment.supplier.email}</p>
+                    <p className="font-medium text-gray-900">{payment.Supplier.company_name}</p>
+                    {payment.Supplier.email && (
+                      <p className="text-sm text-gray-500">{payment.Supplier.email}</p>
                     )}
-                    {payment.supplier.phone && (
-                      <p className="text-sm text-gray-500">{payment.supplier.phone}</p>
+                    {payment.Supplier.phone && (
+                      <p className="text-sm text-gray-500">{payment.Supplier.phone}</p>
                     )}
                     <Link 
-                      to={`/suppliers/${payment.supplier.id}`}
+                      to={`/suppliers/${payment.Supplier.id}`}
                       className="text-sm text-primary-600 hover:text-primary-700 mt-2 inline-block"
                     >
                       View Supplier

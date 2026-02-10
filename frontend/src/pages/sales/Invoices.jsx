@@ -33,14 +33,16 @@ import {
 
 function getStatusConfig(status) {
   switch (status) {
-    case 'paid':
+    case 'PAID':
       return { color: 'success', icon: CheckCircle, label: 'Paid' };
-    case 'pending':
-      return { color: 'warning', icon: Clock, label: 'Pending' };
-    case 'overdue':
-      return { color: 'danger', icon: XCircle, label: 'Overdue' };
-    case 'cancelled':
-      return { color: 'secondary', icon: XCircle, label: 'Cancelled' };
+    case 'PARTIALLY_PAID':
+      return { color: 'warning', icon: Clock, label: 'Partial' };
+    case 'UNPAID':
+      return { color: 'danger', icon: XCircle, label: 'Unpaid' };
+    case 'OVERPAID':
+      return { color: 'info', icon: Clock, label: 'Overpaid' };
+    case 'REFUNDED':
+      return { color: 'secondary', icon: XCircle, label: 'Refunded' };
     default:
       return { color: 'secondary', icon: Clock, label: status };
   }
@@ -54,7 +56,7 @@ export default function Invoices() {
   
   const { data, isLoading } = useQuery({
     queryKey: ['invoices', page, search, statusFilter],
-    queryFn: () => invoicesAPI.getAll({ page, search, status: statusFilter !== 'all' ? statusFilter : undefined }),
+    queryFn: () => invoicesAPI.getAll({ page, search, status: statusFilter !== 'all' ? statusFilter.toUpperCase() : undefined }),
   });
   
   const invoices = data?.data?.invoices || [];
@@ -110,7 +112,7 @@ export default function Invoices() {
       key: 'status',
       header: 'Status',
       render: (row) => {
-        const config = getStatusConfig(row.status);
+        const config = getStatusConfig(row.payment_status);
         return <Badge color={config.color}>{config.label}</Badge>;
       },
     },

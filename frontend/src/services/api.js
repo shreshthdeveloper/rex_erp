@@ -40,9 +40,9 @@ export default api;
 export const authAPI = {
   login: (data) => api.post('/auth/login', data),
   register: (data) => api.post('/auth/register', data),
-  getProfile: () => api.get('/auth/profile'),
+  getProfile: () => api.get('/auth/me'),
   updateProfile: (data) => api.put('/auth/profile', data),
-  changePassword: (data) => api.put('/auth/change-password', data),
+  changePassword: (data) => api.post('/auth/change-password', data),
   forgotPassword: (data) => api.post('/auth/forgot-password', data),
   resetPassword: (data) => api.post('/auth/reset-password', data)
 };
@@ -228,8 +228,8 @@ export const paymentsAPI = {
   getCustomerPayments: (params) => api.get('/payments/customer', { params }),
   getCustomerPaymentById: (id) => api.get(`/payments/customer/${id}`),
   createCustomerPayment: (data) => api.post('/payments/customer', data),
-  updatePaymentStatus: (id, data) => api.patch(`/payments/customer/${id}/status`, data),
-  getCustomerLedger: (customerId) => api.get(`/payments/customer/${customerId}/ledger`),
+  updatePaymentStatus: (id, data) => api.put(`/payments/customer/${id}/status`, data),
+  getCustomerLedger: (customerId) => api.get(`/payments/customer/ledger/${customerId}`),
   
   // Supplier Payments
   getSupplierPayments: (params) => api.get('/payments/supplier', { params }),
@@ -237,7 +237,7 @@ export const paymentsAPI = {
   createSupplierPayment: (data) => api.post('/payments/supplier', data),
   approveSupplierPayment: (id) => api.post(`/payments/supplier/${id}/approve`),
   processSupplierPayment: (id) => api.post(`/payments/supplier/${id}/process`),
-  getSupplierLedger: (supplierId) => api.get(`/payments/supplier/${supplierId}/ledger`)
+  getSupplierLedger: (supplierId) => api.get(`/payments/supplier/ledger/${supplierId}`)
 };
 
 // Dispatch API
@@ -245,11 +245,12 @@ export const dispatchAPI = {
   getAll: (params) => api.get('/dispatch', { params }),
   getById: (id) => api.get(`/dispatch/${id}`),
   create: (data) => api.post('/dispatch', data),
+  updateStatus: (id, status) => api.patch(`/dispatch/${id}/status`, { status }),
   startPicking: (id) => api.post(`/dispatch/${id}/start-picking`),
-  updatePicked: (id, data) => api.put(`/dispatch/${id}/picked`, data),
+  updatePicked: (id, data) => api.put(`/dispatch/${id}/picking`, data),
   completePicking: (id) => api.post(`/dispatch/${id}/complete-picking`),
   startPacking: (id) => api.post(`/dispatch/${id}/start-packing`),
-  updatePacked: (id, data) => api.put(`/dispatch/${id}/packed`, data),
+  updatePacked: (id, data) => api.put(`/dispatch/${id}/packing`, data),
   completePacking: (id) => api.post(`/dispatch/${id}/complete-packing`),
   ship: (id, data) => api.post(`/dispatch/${id}/ship`, data),
   addTracking: (id, data) => api.post(`/dispatch/${id}/tracking`, data),
